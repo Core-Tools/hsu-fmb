@@ -1,0 +1,134 @@
+// api/proto/fmb.proto
+syntax = "proto3";
+
+package fmb; // fmb = Foundational Model Benchmark
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// Benchmark Service
+service BenchmarkService {
+  rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
+  rpc RunBenchmark(RunRequest) returns (stream RunResponse);
+}
+
+// --- Benchmark Exploration ---
+
+message GetInfoRequest {
+  optional string benchmark_name = 1; // Filter benchmarks by name (optional)
+}
+
+message GetInfoResponse {
+  repeated Benchmark benchmarks = 1;
+}
+
+message BenchmarkInfo {
+  string name = 1;
+  string version = 2;
+  BenchmarkCategory category = 3;
+  repeated BenchmarkRequirement requirements = 4;
+  google.protobuf.Struct custom_parameters_schema = 5;
+  repeated BenchmarkPresetInfo presets = 6;
+  repeated string scorers = 7;
+}
+
+message BenchmarkPresetInfo {
+  string name = 1;
+  string description = 2;
+  google.protobuf.Struct parameters = 3;
+  optional int32 steps_count = 4;
+  repeated BenchmarkStepInfo steps = 5;
+}
+
+message BenchmarkStepInfo {
+  string name = 1;
+  string description = 2;
+}
+
+// Enums for better categorization
+
+enum BenchmarkCategory {
+  UNSPECIFIED_CATEGORY = 0;
+  LLM = 1;
+  EMBEDDING = 2;
+  VLM = 3;
+}
+
+enum BenchmarkRequirement {
+  UNSPECIFIED_REQUIREMENT = 0;
+  LLM_MODEL = 1;
+  EMBEDDING_MODEL = 2;
+  PYTHON_RUNTIME = 3;
+  GPU = 4;
+  INTERNET_ACCESS = 5;
+}
+
+// --- Benchmark Execution (Run) ---
+
+message RunRequest {
+  string benchmark_name = 1;
+  oneof parameter_input {
+    string preset_name = 2;
+    string scorer_name = 3;
+    google.protobuf.Struct custom_parameters = 4;
+  }
+  string model_name = 5;
+  float temperature = 6;
+  string openai_compatible_url = 7;
+  optional int32 duration_limit_seconds = 8;
+  optional int32 step_limit = 9;
+  optional string code_execution_runtime = 10;
+  optional int32 continue_from_step = 11;
+}
+
+message RunResponse {
+  RunResult run_result = 1;
+  repeated RunStepResult steps = 2;
+}
+
+message RunResult {
+  string uuid = 1;
+  google.protobuf.Timestamp start_time = 2;
+  optional google.protobuf.Timestamp end_time = 3;
+  float intermediate_score = 4;
+  float progress_percentage = 5;
+  int progress_steps = 6;
+  bool higher_is_better = 7;
+}
+
+message RunStepResult {
+  string uuid = 1;
+  float score = 2;
+  string step_name = 3;
+  optional LLMInteractionResult llm_interaction = 4;
+  optional CodeExecutionResult code_execution = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+}
+
+message LLMInteractionResult {
+  string input_prompt = 1;
+  string output_completion = 2;
+  int32 input_tokens = 3;
+  int32 output_tokens = 4;
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp end_time = 6;
+}
+
+message CodeExecutionResult {
+  string cmdline = 1;
+  optional string stdout_output = 2;
+  optional string stderr_output = 3;
+  optional int32 exit_code = 4;
+  optional CodeExecutionStatus status = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+}
+
+enum CodeExecutionStatus {
+  UNSPECIFIED_STATUS = 0;
+  SUCCESS = 1;
+  FAILURE = 2;
+  TIMEOUT = 3;
+  ERROR = 4;
+}
